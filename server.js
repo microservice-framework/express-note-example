@@ -4,6 +4,7 @@ var bodyParser = require('body-parser');
 var mongoose   = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/express-todo');
 var Note = require('./app/models/note.js');
+var User = require('./app/models/user.js');
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -13,6 +14,67 @@ var port = process.env.PORT || 8080;
 var router = express.Router();
 router.get('/', function(req, res) {
     res.json({ message: 'hooray! welcome to our api!' });   
+});
+
+router.route('/users')
+.post(function(req, res) {
+  var user = new User();
+  user.title = req.body.title;
+  user.body = req.body.body;
+
+  user.save(function(err) {
+    if (err) {
+      return res.send(err);
+    }
+    res.json({ message: 'user created!' });
+  });
+})
+.get(function(req, res) {
+  User.find(function(err, users) {
+    if (err) {
+      return res.send(err);
+    }
+    res.json(users);
+  });
+});
+
+router.route('/users/:user_id')
+.get(function(req, res) {
+  User.findById(req.params.user_id, function(err, user) {
+    if (err) {
+      return res.send(err);
+    }
+    res.json(user);
+  });
+})
+.put(function(req, res) {
+  User.findById(req.params.user_id, function(err, user) {
+    if (err) {
+      return res.send(err);
+    }
+    if (req.body.title) {
+      user.title = req.body.title;  // update the bears info
+    }
+    if (req.body.body) {
+      user.body = req.body.body;  // update the bears info
+    }
+    user.save(function(err) {
+      if (err) {
+        return res.send(err);
+      }
+      res.json({ message: 'User updated!' });
+    });
+  });
+})
+.delete(function(req, res) {
+  User.remove({
+    _id: req.params.user_id
+  }, function(err, user) {
+    if (err) {
+      return res.send(err);
+    }
+    res.json({ message: 'Successfully deleted' });
+  });
 });
 
 router.route('/notes')
