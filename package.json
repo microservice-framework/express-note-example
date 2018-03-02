@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "cs": "eslint --fix server.js app/models/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

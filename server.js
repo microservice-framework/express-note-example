@@ -4,7 +4,7 @@ var bodyParser = require('body-parser');
 var mongoose   = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/express-todo');
 var Note = require('./app/models/note.js');
-var User = require('./app/models/user.js');
+var User = require('./app/models/users.js');
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -19,8 +19,12 @@ router.get('/', function(req, res) {
 router.route('/users')
 .post(function(req, res) {
   var user = new User();
-  user.title = req.body.title;
-  user.body = req.body.body;
+  user.login = req.body.login;
+  if (req.body.name) {
+    user.name = req.body.name;  
+  } else {
+    user.name = user.login;
+  }
 
   user.save(function(err) {
     if (err) {
@@ -38,9 +42,9 @@ router.route('/users')
   });
 });
 
-router.route('/users/:user_id')
+router.route('/users/:username')
 .get(function(req, res) {
-  User.findById(req.params.user_id, function(err, user) {
+  User.findOne({'login': req.params.username}, function(err, user) {
     if (err) {
       return res.send(err);
     }
@@ -48,15 +52,12 @@ router.route('/users/:user_id')
   });
 })
 .put(function(req, res) {
-  User.findById(req.params.user_id, function(err, user) {
+  User.findOne({'login': req.params.username}, function(err, user) {
     if (err) {
       return res.send(err);
     }
-    if (req.body.title) {
-      user.title = req.body.title;  // update the bears info
-    }
-    if (req.body.body) {
-      user.body = req.body.body;  // update the bears info
+    if (req.body.name) {
+      user.name = req.body.name;  
     }
     user.save(function(err) {
       if (err) {
@@ -68,7 +69,7 @@ router.route('/users/:user_id')
 })
 .delete(function(req, res) {
   User.remove({
-    _id: req.params.user_id
+    login: req.params.username
   }, function(err, user) {
     if (err) {
       return res.send(err);
@@ -114,10 +115,10 @@ router.route('/notes/:note_id')
         return res.send(err);
       }
       if (req.body.title) {
-        note.title = req.body.title;  // update the bears info
+        note.title = req.body.title;  
       }
       if (req.body.body) {
-        note.body = req.body.body;  // update the bears info
+        note.body = req.body.body;  
       }
       note.save(function(err) {
         if (err) {
