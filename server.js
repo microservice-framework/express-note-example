@@ -44,31 +44,19 @@ router.route('/users')
 
 router.route('/users/:username')
 .get(function(req, res) {
-  User.findOne({'login': req.params.username}, function(err, user) {
-    if (err) {
-      return res.send(err);
-    }
-    res.json(user);
-  });
+  res.json(req.params.username);
 })
 .put(function(req, res) {
-  User.findOne({'login': req.params.username}, function(err, user) {
+
+  req.params.username.save(function(err) {
     if (err) {
       return res.send(err);
     }
-    if (req.body.name) {
-      user.name = req.body.name;  
-    }
-    user.save(function(err) {
-      if (err) {
-        return res.send(err);
-      }
-      res.json({ message: 'User updated!' });
-    });
+    res.json({ message: 'User updated!' });
   });
 })
 .delete(function(req, res) {
-  User.remove({
+  req.params.username.remove({
     login: req.params.username
   }, function(err, user) {
     if (err) {
@@ -78,11 +66,12 @@ router.route('/users/:username')
   });
 });
 
-router.route('/notes')
+router.route('/users/:username/notes')
   .post(function(req, res) {
     var note = new Note();
     note.title = req.body.title;
     note.body = req.body.body;
+    note.login = req.params.username.login;
 
     note.save(function(err) {
       if (err) {
@@ -92,7 +81,7 @@ router.route('/notes')
     });
   })
   .get(function(req, res) {
-    Note.find(function(err, notes) {
+    Note.find({login: req.params.username.login},function(err, notes) {
       if (err) {
         return res.send(err);
       }
@@ -100,9 +89,12 @@ router.route('/notes')
     });
   });
 
-router.route('/notes/:note_id')
+router.route('/users/:username/notes/:note_id')
   .get(function(req, res) {
-    Note.findById(req.params.note_id, function(err, note) {
+    Note.findOne({
+      login: req.params.username.login,
+      _id: req.params.note_id
+    }, function(err, note) {
       if (err) {
         return res.send(err);
       }
@@ -110,7 +102,10 @@ router.route('/notes/:note_id')
     });
   })
   .put(function(req, res) {
-    Note.findById(req.params.note_id, function(err, note) {
+    Note.findOne({
+      login: req.params.username.login,
+      _id: req.params.note_id
+    }, function(err, note) {
       if (err) {
         return res.send(err);
       }
@@ -130,15 +125,31 @@ router.route('/notes/:note_id')
   })
   .delete(function(req, res) {
     Note.remove({
+      login: req.params.username.login,
       _id: req.params.note_id
-    }, function(err, note) {
+    } , function(err, note) {
       if (err) {
         return res.send(err);
       }
       res.json({ message: 'Successfully deleted' });
     });
   });
-// all of our routes will be prefixed with /api
+
+
+  router.param('username', function(req, res, next, username) {
+    User.findOne({'login': req.params.username}, function(err, user) {
+      if (err) {
+        return res.send(new Error('No such user'));
+      }
+      if (!user) {
+        return res.status('404').send(new Error('No such user'));
+      }
+      req.params.username = user;
+      next();
+    });
+
+  });
+
 app.use('/api', router);
 
 // START THE SERVER
