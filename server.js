@@ -38,6 +38,9 @@ router.route('/users')
     if (err) {
       return res.send(err);
     }
+    for (let user of users){
+      delete user.password;
+    }
     res.json(users);
   });
 });
@@ -47,7 +50,12 @@ router.route('/users/:username')
   res.json(req.params.username);
 })
 .put(function(req, res) {
-
+  if (req.body.name) {
+    req.params.username.name = req.body.name;  
+  }
+  if (req.body.password) {
+    req.params.username.password = req.body.password;  
+  }
   req.params.username.save(function(err) {
     if (err) {
       return res.send(err);
@@ -144,6 +152,7 @@ router.route('/users/:username/notes/:note_id')
       if (!user) {
         return res.status('404').send(new Error('No such user'));
       }
+      delete user.password;
       req.params.username = user;
       next();
     });
