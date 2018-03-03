@@ -6,14 +6,73 @@ mongoose.connect('mongodb://localhost:27017/express-todo');
 var Note = require('./app/models/note.js');
 var User = require('./app/models/users.js');
 
+var jwt = require('jsonwebtoken');
+
+var passport = require("passport");
+var passportJWT = require("passport-jwt");
+
+var ExtractJwt = passportJWT.ExtractJwt;
+var JwtStrategy = passportJWT.Strategy;
+
+var jwtOptions = {}
+jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+jwtOptions.secretOrKey = 'TheMeaningOfLiveIs42';
+
+var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
+  User.findOne({'login': jwt_payload.username}, function(err, user) {
+    if (err) {
+      next(null, false);
+    }
+    if (!user) {
+      next(null, false);
+    }
+    next(null, user);
+  });
+});
+
+passport.use(strategy);
+
+app.use(passport.initialize());
+
+var roleVerify = function(role) {
+  return function(req, res, next) {
+    passport.authenticate('jwt', function(err, user, info) {
+      if(user.role != role) {
+        return res.status(403).json({message:"access denied"});
+      }
+      next();
+    })(req, res, next);
+  }
+}
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 var port = process.env.PORT || 8080;
 
 var router = express.Router();
+router.post("/login", function(req, res) {
+
+  User.findOne({'login': req.body.username, 'password': req.body.password}, function(err, user) {
+    if(err) {
+      return res.send(err);
+    }
+
+    if(!user) {
+      return res.status(401).json({message:"no such user found"});
+    }
+
+    let payload = {
+      username: user.login,
+      role: user.role,
+    };
+    var token = jwt.sign(payload, jwtOptions.secretOrKey);
+    res.json({message: "ok", token: token});
+  });  
+});
+
 router.get('/', function(req, res) {
-    res.json({ message: 'hooray! welcome to our api!' });   
+  res.json({ message: 'hooray! welcome to our api!' });   
 });
 
 router.route('/users')
@@ -38,9 +97,6 @@ router.route('/users')
     if (err) {
       return res.send(err);
     }
-    for (let user of users){
-      delete user.password;
-    }
     res.json(users);
   });
 });
@@ -55,6 +111,9 @@ router.route('/users/:username')
   }
   if (req.body.password) {
     req.params.username.password = req.body.password;  
+  }
+  if (req.body.role) {
+    req.params.username.role = req.body.role;  
   }
   req.params.username.save(function(err) {
     if (err) {
@@ -152,7 +211,6 @@ router.route('/users/:username/notes/:note_id')
       if (!user) {
         return res.status('404').send(new Error('No such user'));
       }
-      delete user.password;
       req.params.username = user;
       next();
     });
