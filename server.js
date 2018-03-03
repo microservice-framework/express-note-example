@@ -34,9 +34,13 @@ passport.use(strategy);
 
 app.use(passport.initialize());
 
-var roleVerify = function(role) {
+var isOwnerOrRole = function(role) {
   return function(req, res, next) {
     passport.authenticate('jwt', function(err, user, info) {
+      var isRestricted = false;
+      if(user.login == req.params.username.login) {
+        return next();
+      }
       if(user.role != role) {
         return res.status(403).json({message:"access denied"});
       }
@@ -51,6 +55,7 @@ app.use(bodyParser.json());
 var port = process.env.PORT || 8080;
 
 var router = express.Router();
+
 router.post("/login", function(req, res) {
 
   User.findOne({'login': req.body.username, 'password': req.body.password}, function(err, user) {
@@ -105,7 +110,7 @@ router.route('/users/:username')
 .get(function(req, res) {
   res.json(req.params.username);
 })
-.put(function(req, res) {
+.put(isOwnerOrRole('admin'), function(req, res) {
   if (req.body.name) {
     req.params.username.name = req.body.name;  
   }
@@ -122,7 +127,7 @@ router.route('/users/:username')
     res.json({ message: 'User updated!' });
   });
 })
-.delete(function(req, res) {
+.delete(isOwnerOrRole('admin'), function(req, res) {
   req.params.username.remove({
     login: req.params.username
   }, function(err, user) {
@@ -134,7 +139,7 @@ router.route('/users/:username')
 });
 
 router.route('/users/:username/notes')
-  .post(function(req, res) {
+  .post(isOwnerOrRole('admin'), function(req, res) {
     var note = new Note();
     note.title = req.body.title;
     note.body = req.body.body;
@@ -168,7 +173,7 @@ router.route('/users/:username/notes/:note_id')
       res.json(note);
     });
   })
-  .put(function(req, res) {
+  .put(isOwnerOrRole('admin'), function(req, res) {
     Note.findOne({
       login: req.params.username.login,
       _id: req.params.note_id
@@ -190,7 +195,7 @@ router.route('/users/:username/notes/:note_id')
       });
     });
   })
-  .delete(function(req, res) {
+  .delete(isOwnerOrRole('admin'), function(req, res) {
     Note.remove({
       login: req.params.username.login,
       _id: req.params.note_id
